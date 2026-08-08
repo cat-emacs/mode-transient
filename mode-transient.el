@@ -4,7 +4,7 @@
 
 ;; Author: Misaka <chuxubank@qq.com>
 ;; Maintainer: Misaka <chuxubank@qq.com>
-;; Version: 0.1.0
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "29.1") (transient "0.13.0"))
 ;; Keywords: convenience, transient
 ;; URL: https://github.com/cat-emacs/mode-transient
@@ -30,8 +30,9 @@
 ;; integration.  Group and suffix specifications use Transient's native
 ;; syntax, so levels, predicates, infixes, dynamic descriptions, and nested
 ;; prefixes work without an adapter language.
-;; Prefix `:description' values that are forms are automatically wrapped in a
-;; zero-argument function.
+;; Prefix `:description' values are rendered as an always-visible outer group
+;; title.  Forms are automatically wrapped in a zero-argument function.
+;; Suffixes without descriptions fall back to their command summary or name.
 ;;
 ;; Define a menu that other packages can extend:
 ;;
@@ -90,6 +91,10 @@ The function receives the mode symbol and either `major' or `minor'."
   :type 'function
   :group 'mode-transient)
 
+(defun mode-transient-command-name (suffix)
+  "Return the command name represented by Transient SUFFIX."
+  (symbol-name (oref suffix command)))
+
 (defvar mode-transient--major-prefixes nil
   "Alist mapping major modes to their generated Transient prefixes.")
 
@@ -140,6 +145,16 @@ Wrap non-literal forms in a zero-argument function."
   (let ((result (copy-sequence base)))
     (while extra
       (setq result (plist-put result (pop extra) (pop extra))))
+    result))
+
+(defun mode-transient--without-options (options omitted)
+  "Return OPTIONS without keys listed in OMITTED."
+  (let (result)
+    (while options
+      (let ((key (pop options))
+            (value (pop options)))
+        (unless (memq key omitted)
+          (setq result (append result (list key value))))))
     result))
 
 (defun mode-transient--group-parts (group)
@@ -214,7 +229,17 @@ Wrap non-literal forms in a zero-argument function."
       (setq options (mode-transient--merge-options
                      options (copy-sequence (nth 1 entry)))
             groups (append groups (copy-tree (nth 2 entry)))))
-    (setq groups (mode-transient--merge-groups groups))
+    (let ((description (plist-get options :description)))
+      (unless (plist-member options :suffix-description)
+        (setq options
+              (append options
+                      '(:suffix-description
+                        #'mode-transient-command-name))))
+      (setq options (mode-transient--without-options options '(:description))
+            groups (mode-transient--merge-groups groups))
+      (when description
+        (setq groups
+              (list (vconcat (list :description description) groups)))))
     (eval `(transient-define-prefix ,prefix ()
              ,@(and docstring (list docstring))
              ,@options
@@ -267,13 +292,7 @@ later."
 
 (defun mode-transient--remove-mode-options (options)
   "Remove mode-specific options from prefix OPTIONS."
-  (let (result)
-    (while options
-      (let ((key (pop options))
-            (value (pop options)))
-        (unless (memq key '(:key :keymap :feature))
-          (setq result (append result (list key value))))))
-    result))
+  (mode-transient--without-options options '(:key :keymap :feature)))
 
 (defun mode-transient--unquote (value)
   "Return VALUE without one `quote' wrapper."

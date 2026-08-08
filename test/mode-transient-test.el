@@ -31,6 +31,27 @@
     (should (string-prefix-p "Buffer: "
                              (funcall (eval description t))))))
 
+(ert-deftest mode-transient-renders-dynamic-title-with-text-properties ()
+  (mode-transient-define-prefix mode-transient-test-rendered-title ()
+    :description (propertize "Icon title"
+                            'face '(:family "Test Nerd Font"))
+    ["Test"
+     ("t" mode-transient-test-command)])
+  (unwind-protect
+      (progn
+        (mode-transient-test-rendered-title)
+        (with-current-buffer transient--buffer-name
+          (goto-char (point-min))
+          (should (equal (buffer-substring-no-properties
+                          (point-min) (+ (point-min) 10))
+                         "Icon title"))
+          (should (equal (plist-get (get-text-property (point) 'face)
+                                    :family)
+                         "Test Nerd Font"))
+          (should-not (string-match-p "(BUG: no description)"
+                                      (buffer-string)))))
+    (transient-quit-all)))
+
 (ert-deftest mode-transient-registers-use-package-keywords-once ()
   (dolist (keyword '(:transient :mode-transient :minor-mode-transient))
     (should (= 1 (cl-count keyword use-package-keywords)))))

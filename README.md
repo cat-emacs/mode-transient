@@ -34,9 +34,24 @@ Define a prefix once and extend it from multiple package declarations:
     ("c" "Compile" compile)]))
 ```
 
-A non-literal prefix `:description` is automatically wrapped in a
-zero-argument function. Strings, function symbols, and explicit lambdas are
-left unchanged.
+A prefix `:description` is rendered as an always-visible outer group heading,
+so text properties such as Nerd Font families are preserved. A non-literal
+description is automatically wrapped in a zero-argument function; strings,
+function symbols, and explicit lambdas are left unchanged.
+
+Suffix descriptions may be omitted while porting a command map:
+
+```elisp
+(mode-transient-define-prefix my-session ()
+  ["Session"
+   ("n" session-new)
+   ("r" session-rename)])
+```
+
+Such suffixes show their command names through Transient's native
+`:suffix-description` mechanism. Set that prefix option explicitly to override
+the fallback, for example with `transient-command-summary-or-name` when command
+docstring summaries are preferred.
 
 ## Major-mode menus
 
