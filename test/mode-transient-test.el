@@ -1,4 +1,4 @@
-;;; mode-transient-test.el --- Tests for mode-transient -*- lexical-binding: t; -*-
+;;; mode-transient-test.el --- Tests for mode-transient -*- lexical-binding: t; no-byte-compile: t; -*-
 
 (require 'ert)
 (require 'mode-transient-use-package)
