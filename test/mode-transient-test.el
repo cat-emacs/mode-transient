@@ -43,15 +43,20 @@
       :ensure nil
       :transient
       (mode-transient-test-tools
+       (:description (format "Tools: %s" (buffer-name)))
        ["One"
         ("a" "First" mode-transient-test-command)])
       (mode-transient-test-tools
        ["One"
         ("b" "Second" mode-transient-test-command)])))
   (should (fboundp 'mode-transient-test-tools))
-  (should (= 2 (length
-                (get 'mode-transient-test-tools
-                     'mode-transient--contributions)))))
+  (let ((contributions
+         (get 'mode-transient-test-tools
+              'mode-transient--contributions)))
+    (should (= 2 (length contributions)))
+    (should
+     (eq (car (plist-get (nth 1 (car contributions)) :description))
+         'lambda))))
 
 (ert-deftest mode-transient-major-mode-falls-back-to-parent ()
   (mode-transient--register-mode
