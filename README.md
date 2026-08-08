@@ -15,8 +15,8 @@ Transient's native group and suffix syntax instead of an adapter DSL.
 ```
 
 The core library does not depend on `use-package`. Requiring
-`mode-transient-use-package` installs the `:transient`, `:mode-transient`, and
-`:minor-mode-transient` keywords.
+`mode-transient-use-package` installs the `:transient`, `:major-transient`, and
+`:minor-transient` keywords.
 
 ## Named menus
 
@@ -58,7 +58,7 @@ docstring summaries are preferred.
 ```elisp
 (use-package eglot
   :ensure nil
-  :mode-transient
+  :major-transient
   (prog-mode
    ["LSP"
     ("e" "Start Eglot" eglot)
@@ -72,7 +72,7 @@ major mode or one of its parents.
 
 ```elisp
 (use-package example-mode
-  :minor-mode-transient
+  :minor-transient
   (example-mode
    (:key "C-c e")
    ["Example"
@@ -91,8 +91,13 @@ command elsewhere:
             #'mode-transient/minor/example-mode)
 ```
 
-`M-x mode-transient-minor` selects among active minor modes with registered
-menus.
+`M-x mode-transient-minor` is the unified minor-mode entry point. It opens the
+only active registered minor-mode menu directly, or prompts when several are
+active.
+
+By default, mode-transient hides the cursor in its menu buffer so the title's
+first character remains visible. Customize `mode-transient-hide-cursor` to nil
+to retain Transient's cursor behavior. Other Transient menus are unaffected.
 
 ## Native Transient features
 

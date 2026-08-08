@@ -19,6 +19,12 @@
   "Minor mode used by mode-transient tests."
   :keymap mode-transient-test-minor-mode-map)
 
+(define-derived-mode mode-transient-test-keyword-major-mode fundamental-mode
+  "Mode-Transient Keyword Major")
+
+(define-minor-mode mode-transient-test-keyword-minor-mode
+  "Minor mode registered through the use-package adapter.")
+
 (ert-deftest mode-transient-wraps-description-forms ()
   (mode-transient-define-prefix mode-transient-test-description ()
     :description (format "Buffer: %s" (buffer-name))
@@ -42,6 +48,8 @@
         (mode-transient-test-rendered-title)
         (with-current-buffer transient--buffer-name
           (goto-char (point-min))
+          (should-not cursor-type)
+          (should-not cursor-in-non-selected-windows)
           (should (equal (buffer-substring-no-properties
                           (point-min) (+ (point-min) 10))
                          "Icon title"))
@@ -52,9 +60,22 @@
                                       (buffer-string)))))
     (transient-quit-all)))
 
+(ert-deftest mode-transient-leaves-other-transient-cursors-alone ()
+  (transient-define-prefix mode-transient-test-native-prefix ()
+    ["Native"
+     ("t" "Test" mode-transient-test-command)])
+  (unwind-protect
+      (progn
+        (mode-transient-test-native-prefix)
+        (with-current-buffer transient--buffer-name
+          (should (eq cursor-in-non-selected-windows 'box))))
+    (transient-quit-all)))
+
 (ert-deftest mode-transient-registers-use-package-keywords-once ()
-  (dolist (keyword '(:transient :mode-transient :minor-mode-transient))
-    (should (= 1 (cl-count keyword use-package-keywords)))))
+  (dolist (keyword '(:transient :major-transient :minor-transient))
+    (should (= 1 (cl-count keyword use-package-keywords))))
+  (dolist (keyword '(:mode-transient :minor-mode-transient))
+    (should-not (memq keyword use-package-keywords))))
 
 (ert-deftest mode-transient-use-package-composes-named-groups ()
   (mode-transient-define-prefix mode-transient-test-tools ()
@@ -89,6 +110,27 @@
      (eq (mode-transient--major-prefix)
          'mode-transient/major/mode-transient-test-parent-mode))))
 
+(ert-deftest mode-transient-use-package-registers-major-and-minor-modes ()
+  (eval
+   '(use-package emacs
+      :ensure nil
+      :major-transient
+      (mode-transient-test-keyword-major-mode
+       ["Major"
+        ("a" "Major" mode-transient-test-command)])
+      :minor-transient
+      (mode-transient-test-keyword-minor-mode
+       ["Minor"
+        ("i" "Minor" mode-transient-test-command)])))
+  (should
+   (eq (alist-get 'mode-transient-test-keyword-major-mode
+                  mode-transient--major-prefixes)
+       'mode-transient/major/mode-transient-test-keyword-major-mode))
+  (should
+   (eq (alist-get 'mode-transient-test-keyword-minor-mode
+                  mode-transient--minor-prefixes)
+       'mode-transient/minor/mode-transient-test-keyword-minor-mode)))
+
 (ert-deftest mode-transient-minor-mode-installs-configured-key ()
   (mode-transient--register-mode
    'minor 'mode-transient-test-minor-mode 'minor-test
@@ -97,6 +139,20 @@
   (should
    (eq (lookup-key mode-transient-test-minor-mode-map (kbd "C-c t"))
        'mode-transient/minor/mode-transient-test-minor-mode)))
+
+(ert-deftest mode-transient-minor-opens-the-only-active-menu ()
+  (mode-transient--register-mode
+   'minor 'mode-transient-test-minor-mode 'minor-dispatch-test nil
+   '(["Minor" ("m" "Minor" mode-transient-test-command)]) 'emacs)
+  (with-temp-buffer
+    (mode-transient-test-minor-mode 1)
+    (unwind-protect
+        (progn
+          (mode-transient-minor)
+          (should
+           (eq (oref transient--prefix command)
+               'mode-transient/minor/mode-transient-test-minor-mode)))
+      (transient-quit-all))))
 
 (ert-deftest mode-transient-autoloads-handle-dynamic-descriptions ()
   (should

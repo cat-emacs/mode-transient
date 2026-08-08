@@ -4,7 +4,7 @@
 
 ;; Author: Misaka <chuxubank@qq.com>
 ;; Maintainer: Misaka <chuxubank@qq.com>
-;; Version: 0.1.1
+;; Version: 0.2.0
 ;; Package-Requires: ((emacs "29.1") (transient "0.13.0"))
 ;; Keywords: convenience, transient
 ;; URL: https://github.com/cat-emacs/mode-transient
@@ -48,7 +48,7 @@
 ;; Add commands to a major-mode menu:
 ;;
 ;;   (use-package foo
-;;     :mode-transient
+;;     :major-transient
 ;;     (prog-mode
 ;;      ["Foo"
 ;;       ("f" "Run foo" foo-run)]))
@@ -57,7 +57,7 @@
 ;; inferred from the mode name unless `:keymap' is specified:
 ;;
 ;;   (use-package foo
-;;     :minor-mode-transient
+;;     :minor-transient
 ;;     (foo-mode
 ;;      (:key "C-c f")
 ;;      ["Foo"
@@ -91,6 +91,11 @@ The function receives the mode symbol and either `major' or `minor'."
   :type 'function
   :group 'mode-transient)
 
+(defcustom mode-transient-hide-cursor t
+  "Whether to hide the cursor in menus built by mode-transient."
+  :type 'boolean
+  :group 'mode-transient)
+
 (defun mode-transient-command-name (suffix)
   "Return the command name represented by Transient SUFFIX."
   (symbol-name (oref suffix command)))
@@ -104,6 +109,14 @@ The function receives the mode symbol and either `major' or `minor'."
 (defconst mode-transient--base-property 'mode-transient--base)
 (defconst mode-transient--contributions-property
   'mode-transient--contributions)
+
+(defun mode-transient--hide-menu-cursor ()
+  "Hide the cursor in the active mode-transient menu."
+  (when (and mode-transient-hide-cursor
+             (buffer-live-p transient--buffer))
+    (with-current-buffer transient--buffer
+      (setq-local cursor-type nil)
+      (setq-local cursor-in-non-selected-windows nil))))
 
 (defun mode-transient--normalize-description (description)
   "Return a native dynamic Transient DESCRIPTION.
@@ -243,7 +256,10 @@ Wrap non-literal forms in a zero-argument function."
     (eval `(transient-define-prefix ,prefix ()
              ,@(and docstring (list docstring))
              ,@options
-             ,@(or groups (list [])))
+             ,@(or groups (list []))
+             (interactive)
+             (transient-setup ',prefix)
+             (mode-transient--hide-menu-cursor))
           t)))
 
 (defun mode-transient--set-base (prefix args)

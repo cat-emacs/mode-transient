@@ -13,8 +13,8 @@
 
 ;;; Commentary:
 
-;; This library installs the `:transient', `:mode-transient', and
-;; `:minor-mode-transient' use-package keywords for `mode-transient'.
+;; This library installs the `:transient', `:major-transient', and
+;; `:minor-transient' use-package keywords for `mode-transient'.
 
 ;;; Code:
 
@@ -152,7 +152,9 @@
 (defun mode-transient--enable-use-package ()
   "Enable mode-transient use-package integration."
   (with-eval-after-load 'use-package-core
-    (dolist (keyword '(:transient :mode-transient :minor-mode-transient))
+    (dolist (keyword '(:mode-transient :minor-mode-transient))
+      (setq use-package-keywords (delq keyword use-package-keywords)))
+    (dolist (keyword '(:transient :major-transient :minor-transient))
       (mode-transient--add-use-package-keyword keyword))
     (defalias 'use-package-normalize/:transient
       #'mode-transient--use-package-normalize-prefix)
@@ -160,14 +162,14 @@
       #'mode-transient--use-package-handler-prefix)
     (defalias 'use-package-autoloads/:transient
       #'mode-transient--use-package-autoloads)
-    (dolist (keyword '(:mode-transient :minor-mode-transient))
+    (dolist (keyword '(:major-transient :minor-transient))
       (defalias (intern (format "use-package-normalize/%s" keyword))
         #'mode-transient--use-package-normalize-mode)
       (defalias (intern (format "use-package-autoloads/%s" keyword))
         #'mode-transient--use-package-autoloads))
-    (defalias 'use-package-handler/:mode-transient
+    (defalias 'use-package-handler/:major-transient
       #'mode-transient--use-package-handler-major)
-    (defalias 'use-package-handler/:minor-mode-transient
+    (defalias 'use-package-handler/:minor-transient
       #'mode-transient--use-package-handler-minor)))
 
 
