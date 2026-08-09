@@ -4,7 +4,7 @@
 
 ;; Author: Misaka <chuxubank@qq.com>
 ;; Maintainer: Misaka <chuxubank@qq.com>
-;; Version: 0.2.0
+;; Version: 0.3.0
 ;; Package-Requires: ((emacs "29.1") (transient "0.13.0"))
 ;; Keywords: convenience, transient
 ;; URL: https://github.com/cat-emacs/mode-transient
@@ -52,6 +52,7 @@
 ;;     (prog-mode
 ;;      ["Foo"
 ;;       ("f" "Run foo" foo-run)]))
+;; Major-mode menus inherit contributions from every registered parent mode.
 ;;
 ;; Minor-mode menus can also install a key in the minor-mode map.  The map is
 ;; inferred from the mode name unless `:keymap' is specified:
@@ -373,17 +374,50 @@ installation of an optional mode-local key."
        prefix source (mode-transient--remove-mode-options options) groups)
       (mode-transient--schedule-binding mode prefix options feature))))
 
+(defun mode-transient--major-lineage-prefixes (&optional mode)
+  "Return registered prefixes from the oldest ancestor through major MODE."
+  (let ((mode (or mode major-mode)) prefixes)
+    (while mode
+      (when-let ((prefix (alist-get mode mode-transient--major-prefixes)))
+        (push prefix prefixes))
+      (setq mode (get mode 'derived-mode-parent)))
+    prefixes))
+
+(defun mode-transient--merge-prefix-contributions (prefixes)
+  "Merge contributions from PREFIXES, letting descendants replace ancestors."
+  (let (result)
+    (dolist (prefix prefixes)
+      (dolist (contribution
+               (get prefix mode-transient--contributions-property))
+        (if-let ((existing (assoc (car contribution) result)))
+            (setcdr existing (copy-tree (cdr contribution)))
+          (setq result
+                (append result (list (copy-tree contribution)))))))
+    result))
+
+(defun mode-transient--major-menu-prefix (mode)
+  "Return the inherited menu prefix for major MODE."
+  (intern (format "mode-transient/major-inherited/%s" mode)))
+
 (defun mode-transient--major-prefix (&optional mode)
-  "Return the closest registered prefix for major MODE."
-  (let ((mode (or mode major-mode)) prefix)
-    (while (and mode (not prefix))
-      (setq prefix (alist-get mode mode-transient--major-prefixes)
-            mode (get mode 'derived-mode-parent)))
-    prefix))
+  "Build and return the inherited prefix for major MODE."
+  (let* ((mode (or mode major-mode))
+         (lineage (mode-transient--major-lineage-prefixes mode)))
+    (when lineage
+      (let ((prefix (mode-transient--major-menu-prefix mode)))
+        (put prefix mode-transient--base-property
+             (mode-transient--mode-base mode 'major))
+        (put prefix mode-transient--contributions-property
+             (mode-transient--merge-prefix-contributions lineage))
+        (mode-transient--rebuild prefix)
+        prefix))))
+
+(when (fboundp 'mode-transient)
+  (fmakunbound 'mode-transient))
 
 ;;;###autoload
-(defun mode-transient ()
-  "Show the Transient registered for the current major mode."
+(defun mode-transient-major ()
+  "Show inherited Transients registered for the current major mode."
   (interactive)
   (if-let ((prefix (mode-transient--major-prefix)))
       (call-interactively prefix)

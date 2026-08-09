@@ -7,7 +7,11 @@
   "Do nothing for mode-transient tests."
   (interactive))
 
-(define-derived-mode mode-transient-test-parent-mode fundamental-mode
+(define-derived-mode mode-transient-test-grandparent-mode fundamental-mode
+  "Mode-Transient Grandparent")
+
+(define-derived-mode mode-transient-test-parent-mode
+  mode-transient-test-grandparent-mode
   "Mode-Transient Parent")
 
 (define-derived-mode mode-transient-test-child-mode
@@ -72,6 +76,8 @@
     (transient-quit-all)))
 
 (ert-deftest mode-transient-registers-use-package-keywords-once ()
+  (should-not (fboundp 'mode-transient))
+  (should (fboundp 'mode-transient-major))
   (dolist (keyword '(:transient :major-transient :minor-transient))
     (should (= 1 (cl-count keyword use-package-keywords))))
   (dolist (keyword '(:mode-transient :minor-mode-transient))
@@ -100,15 +106,33 @@
      (eq (car (plist-get (nth 1 (car contributions)) :description))
          'lambda))))
 
-(ert-deftest mode-transient-major-mode-falls-back-to-parent ()
+(ert-deftest mode-transient-major-inherits-all-ancestor-menus ()
+  (mode-transient--register-mode
+   'major 'mode-transient-test-grandparent-mode 'grandparent-test nil
+   '(["Grandparent"
+      ("g" "Grandparent action" mode-transient-test-command)]) 'emacs)
   (mode-transient--register-mode
    'major 'mode-transient-test-parent-mode 'parent-test nil
-   '(["Parent" ("p" "Parent" mode-transient-test-command)]) 'emacs)
+   '(["Parent"
+      ("p" "Parent action" mode-transient-test-command)]) 'emacs)
+  (mode-transient--register-mode
+   'major 'mode-transient-test-child-mode 'child-test nil
+   '(["Child"
+      ("c" "Child action" mode-transient-test-command)]) 'emacs)
   (with-temp-buffer
     (mode-transient-test-child-mode)
-    (should
-     (eq (mode-transient--major-prefix)
-         'mode-transient/major/mode-transient-test-parent-mode))))
+    (unwind-protect
+        (progn
+          (mode-transient-major)
+          (should
+           (eq (oref transient--prefix command)
+               'mode-transient/major-inherited/mode-transient-test-child-mode))
+          (with-current-buffer transient--buffer-name
+            (dolist (description '("Grandparent action"
+                                   "Parent action"
+                                   "Child action"))
+              (should (string-match-p description (buffer-string))))))
+      (transient-quit-all))))
 
 (ert-deftest mode-transient-use-package-registers-major-and-minor-modes ()
   (eval

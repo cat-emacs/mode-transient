@@ -65,8 +65,10 @@ docstring summaries are preferred.
     ("r" "Rename" eglot-rename)]))
 ```
 
-Run `M-x mode-transient` to open the closest menu registered for the current
-major mode or one of its parents.
+Run `M-x mode-transient-major` to combine menus registered for the current
+major mode and every registered parent mode. Contributions are inherited from
+the oldest ancestor to the current mode, so a menu registered once for
+`prog-mode` is available in all derived programming modes.
 
 ## Minor-mode menus and keys
 
