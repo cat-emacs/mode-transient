@@ -76,14 +76,16 @@ the oldest ancestor to the current mode, so a menu registered once for
 (use-package example-mode
   :minor-transient
   (example-mode
-   (:key "C-c e")
+   (:key "C-c e" :title "Example tools")
    ["Example"
     ("r" "Refresh" example-refresh)]))
 ```
 
 The keymap defaults to `example-mode-map`. Use `:keymap` to override it and
 `:feature` when the map is provided by a feature other than the package named
-by `use-package`.
+by `use-package`. The title defaults to the minor mode's rendered lighter,
+falling back to its mode name when the lighter is empty. Use `:title` to
+override it; title forms are evaluated dynamically.
 
 To keep keys in a central configuration, omit `:key` and bind the generated
 command elsewhere:

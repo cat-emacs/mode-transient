@@ -4,7 +4,7 @@
 
 ;; Author: Misaka <chuxubank@qq.com>
 ;; Maintainer: Misaka <chuxubank@qq.com>
-;; Version: 0.3.0
+;; Version: 0.4.0
 ;; Package-Requires: ((emacs "29.1") (transient "0.13.0"))
 ;; Keywords: convenience, transient
 ;; URL: https://github.com/cat-emacs/mode-transient
@@ -76,15 +76,25 @@
   :group 'convenience
   :prefix "mode-transient-")
 
+(defun mode-transient--minor-lighter-title (mode)
+  "Return the rendered lighter title for minor MODE, or nil."
+  (when-let ((lighter (cdr (assq mode minor-mode-alist))))
+    (let ((title (string-trim (format-mode-line lighter))))
+      (unless (string-empty-p title)
+        title))))
+
 (defun mode-transient-default-title (mode kind)
-  "Return a default title for MODE of KIND."
-  (ignore kind)
-  (format "%s Commands"
-          (capitalize
-           (replace-regexp-in-string
-            "-" " "
-            (replace-regexp-in-string
-             "\\(?:-major\\|-minor\\)?-mode\\'" "" (symbol-name mode))))))
+  "Return a default title for MODE of KIND.
+Minor modes use their lighter when it renders as non-empty text."
+  (or (and (eq kind 'minor)
+           (mode-transient--minor-lighter-title mode))
+      (format "%s Commands"
+              (capitalize
+               (replace-regexp-in-string
+                "-" " "
+                (replace-regexp-in-string
+                 "\\(?:-major\\|-minor\\)?-mode\\'" ""
+                 (symbol-name mode)))))))
 
 (defcustom mode-transient-title-function #'mode-transient-default-title
   "Function used to title generated mode Transients.
@@ -307,9 +317,17 @@ later."
                      ',kind)))
         nil))
 
-(defun mode-transient--remove-mode-options (options)
-  "Remove mode-specific options from prefix OPTIONS."
-  (mode-transient--without-options options '(:key :keymap :feature)))
+(defun mode-transient--mode-prefix-options (options)
+  "Return Transient prefix options derived from mode OPTIONS.
+Translate the mode-specific `:title' option to `:description'."
+  (let ((titlep (plist-member options :title))
+        (title (plist-get options :title))
+        (result
+         (mode-transient--without-options
+          options '(:key :keymap :feature :title))))
+    (if titlep
+        (plist-put result :description title)
+      result)))
 
 (defun mode-transient--unquote (value)
   "Return VALUE without one `quote' wrapper."
@@ -371,7 +389,7 @@ installation of an optional mode-local key."
           (setf (alist-get mode mode-transient--major-prefixes) prefix)
         (setf (alist-get mode mode-transient--minor-prefixes) prefix))
       (mode-transient--set-contribution
-       prefix source (mode-transient--remove-mode-options options) groups)
+       prefix source (mode-transient--mode-prefix-options options) groups)
       (mode-transient--schedule-binding mode prefix options feature))))
 
 (defun mode-transient--major-lineage-prefixes (&optional mode)

@@ -21,6 +21,7 @@
 
 (define-minor-mode mode-transient-test-minor-mode
   "Minor mode used by mode-transient tests."
+  :lighter " Test Minor"
   :keymap mode-transient-test-minor-mode-map)
 
 (define-derived-mode mode-transient-test-keyword-major-mode fundamental-mode
@@ -83,6 +84,25 @@
   (dolist (keyword '(:mode-transient :minor-mode-transient))
     (should-not (memq keyword use-package-keywords))))
 
+(ert-deftest mode-transient-minor-title-uses-lighter ()
+  (let ((rendered (propertize "  Test Minor  " 'face 'bold)))
+    (cl-letf (((symbol-function 'format-mode-line)
+               (lambda (construct &rest _)
+                 (should (equal construct '(" Test Minor")))
+                 rendered)))
+      (let ((title
+             (mode-transient-default-title
+              'mode-transient-test-minor-mode 'minor)))
+        (should (equal title "Test Minor"))
+        (should (eq (get-text-property 0 'face title) 'bold))))))
+
+(ert-deftest mode-transient-minor-title-falls-back-without-lighter ()
+  (should
+   (equal
+    (mode-transient-default-title
+     'mode-transient-test-keyword-minor-mode 'minor)
+    "Mode Transient Test Keyword Commands")))
+
 (ert-deftest mode-transient-use-package-composes-named-groups ()
   (mode-transient-define-prefix mode-transient-test-tools ()
     :description "Test tools")
@@ -144,6 +164,7 @@
         ("a" "Major" mode-transient-test-command)])
       :minor-transient
       (mode-transient-test-keyword-minor-mode
+       (:title (concat "Keyword" " Minor"))
        ["Minor"
         ("i" "Minor" mode-transient-test-command)])))
   (should
@@ -153,7 +174,16 @@
   (should
    (eq (alist-get 'mode-transient-test-keyword-minor-mode
                   mode-transient--minor-prefixes)
-       'mode-transient/minor/mode-transient-test-keyword-minor-mode)))
+       'mode-transient/minor/mode-transient-test-keyword-minor-mode))
+  (let ((prefix
+         (alist-get 'mode-transient-test-keyword-minor-mode
+                    mode-transient--minor-prefixes)))
+    (unwind-protect
+        (progn
+          (funcall prefix)
+          (with-current-buffer transient--buffer-name
+            (should (string-match-p "Keyword Minor" (buffer-string)))))
+      (transient-quit-all))))
 
 (ert-deftest mode-transient-minor-mode-installs-configured-key ()
   (mode-transient--register-mode
